@@ -1,2 +1,2 @@
 # My Notes
-A simple application for taking notes based on an Android SQLITE tutorial from codingwithmitch.com
+A simple application for taking notes for Android SQLITE tutorial from codingwithmitch.com
