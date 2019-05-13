@@ -3,6 +3,8 @@ package izzatismail.com;
 import android.app.Activity;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -14,8 +16,15 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import izzatismail.com.models.Note;
+import izzatismail.com.persistence.NoteRepository;
+import izzatismail.com.util.Utility;
 
-public class NoteActivity extends AppCompatActivity implements View.OnTouchListener, GestureDetector.OnGestureListener, GestureDetector.OnDoubleTapListener, View.OnClickListener {
+public class NoteActivity extends AppCompatActivity implements
+        View.OnTouchListener,
+        GestureDetector.OnGestureListener,
+        GestureDetector.OnDoubleTapListener,
+        View.OnClickListener,
+        TextWatcher {
 
     private static final String TAG = "NoteActivity";
     public static final int EDIT_MODE_ENABLED = 1;
@@ -33,6 +42,8 @@ public class NoteActivity extends AppCompatActivity implements View.OnTouchListe
     private Note mInitialNote;
     private GestureDetector mGestureDetector;
     private int mMode;
+    private NoteRepository mNoteRepository;
+    private Note mFinalNote;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +58,10 @@ public class NoteActivity extends AppCompatActivity implements View.OnTouchListe
         mCheck = findViewById(R.id.toolbar_check);
         mBackArrow = findViewById(R.id.toolbar_back);
 
+        mNoteRepository = new NoteRepository(this);
+
+        setListeners();
+
         if(getIncomingIntent()){
             /* This is a new note (EDIT MODE) */
             setNewNoteProperties();
@@ -56,13 +71,17 @@ public class NoteActivity extends AppCompatActivity implements View.OnTouchListe
             setNoteProperties();
             disableContentInteraction();
         }
-
-        setListeners();
     }
 
     private boolean getIncomingIntent(){
         if(getIntent().hasExtra("selected_note")){
             mInitialNote = getIntent().getParcelableExtra("selected_note");
+            mFinalNote = new Note();
+            mFinalNote.setTitle(mInitialNote.getTitle());
+            mFinalNote.setContent(mInitialNote.getContent());
+            mFinalNote.setTimestamp(mInitialNote.getTimestamp());
+            mFinalNote.setId(mInitialNote.getId());
+
             mIsNewNote = false;
             mMode = EDIT_MODE_DISABLED;
             return false;
@@ -71,6 +90,18 @@ public class NoteActivity extends AppCompatActivity implements View.OnTouchListe
         mIsNewNote = true;
         return true;
     }
+
+    private void saveChanges(){
+        if(mIsNewNote){
+            saveNewNote();
+        }else{
+            updateNote();
+        }
+    }
+
+    private void updateNote(){ mNoteRepository.updateNote(mFinalNote); }
+
+    private void saveNewNote(){ mNoteRepository.insertNoteTask(mFinalNote); }
 
     private void enableEditMode(){
         mBackArrowContainer.setVisibility(View.GONE);
@@ -91,7 +122,23 @@ public class NoteActivity extends AppCompatActivity implements View.OnTouchListe
         mEditTitle.setVisibility(View.GONE);
 
         mMode = EDIT_MODE_DISABLED;
+
         disableContentInteraction();
+
+        String temp = mLinedEditText.getText().toString();
+        temp = temp.replace("\n", "");
+        temp = temp.replace(" ", "");
+        if(temp.length() > 0){
+            mFinalNote.setTitle(mEditTitle.getText().toString());
+            mFinalNote.setContent(mLinedEditText.getText().toString());
+            String timestamp = Utility.getCurrentTimeStamp();
+            mFinalNote.setTimestamp(timestamp);
+
+            if(!mFinalNote.getContent().equals(mInitialNote.getContent())
+                    || !mFinalNote.getTitle().equals(mInitialNote.getTitle())){
+                saveChanges();
+            }
+        }
     }
 
     private void enableContentInteraction(){
@@ -131,6 +178,11 @@ public class NoteActivity extends AppCompatActivity implements View.OnTouchListe
     private void setNewNoteProperties(){
         mViewTitle.setText("Note Title");
         mEditTitle.setText("Note Title");
+
+        mInitialNote = new Note();
+        mFinalNote = new Note();
+        mInitialNote.setTitle("Note Title");
+        mFinalNote.setTitle("Note Title");
     }
 
     private void setListeners(){
@@ -139,6 +191,7 @@ public class NoteActivity extends AppCompatActivity implements View.OnTouchListe
         mViewTitle.setOnClickListener(this);
         mCheck.setOnClickListener(this);
         mBackArrow.setOnClickListener(this);
+        mEditTitle.addTextChangedListener(this);
     }
 
     @Override
@@ -221,5 +274,36 @@ public class NoteActivity extends AppCompatActivity implements View.OnTouchListe
         }else{
             super.onBackPressed();
         }
+    }
+
+    /* For configuration change */
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt("mode", mMode);
+    }// Save some properties
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        mMode = savedInstanceState.getInt("mode");
+        if (mMode == EDIT_MODE_ENABLED){
+            enableEditMode();
+        }
+    }
+
+    @Override
+    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+    }
+
+    @Override
+    public void onTextChanged(CharSequence s, int start, int before, int count) {
+        mViewTitle.setText(s.toString());
+    }
+
+    @Override
+    public void afterTextChanged(Editable s) {
+
     }
 }

@@ -38,6 +38,7 @@
         android:textColor="@color/black"
         android:textColorHighlight="@color/darkGrey"
         android:textColorLink="@color/darkGrey"
-        android:textSize="20sp" />
+        android:textSize="20sp"
+        android:imeOptions="flagNoExtractUi"/>
 
 </LinearLayout>
